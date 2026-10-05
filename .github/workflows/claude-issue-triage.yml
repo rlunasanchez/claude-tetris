@@ -84,7 +84,12 @@ jobs:
             Escribe el resultado en el archivo triage-output/result.json con exactamente este formato JSON:
             {"labels": ["bug", "area:controls", "priority:medium"], "diagnosis": "<markdown>"}
 
-            El campo "diagnosis" debe estar en español, en markdown, con estas secciones:
+            El campo "diagnosis" debe estar en español y en formato Markdown compatible con GitHub
+            (GitHub Flavored Markdown), ya que se publicará tal cual como comentario del issue:
+            usa encabezados `###`, listas con `-` o `1.`, bloques de código con triple backtick y
+            lenguaje (p. ej. ```js), código en línea con `backticks` y tablas GFM si hacen falta.
+            No uses HTML ni sintaxis que GitHub no renderice. Recuerda escapar correctamente los
+            saltos de línea y comillas para que el JSON siga siendo válido. Secciones requeridas:
             ### Resumen
             ### Clasificación (justifica los labels elegidos)
             ### Áreas de código afectadas (archivo y función, p. ej. `game.js` → `tryRotate`)
