@@ -194,6 +194,9 @@ function draw() {
     for (let c = 0; c < COLS; c++)
       drawBlock(ctx, c, r, board[r][c], BLOCK);
 
+  // tras game over la pieza actual ya colisiona: no se dibuja ni su ghost
+  if (gameOver) return;
+
   // ghost
   const gy = ghostY();
   for (let r = 0; r < current.shape.length; r++)
@@ -221,6 +224,7 @@ function drawNext() {
 function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
+  draw();
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlay.classList.remove('hidden');
@@ -241,6 +245,7 @@ function togglePause() {
 }
 
 function loop(ts) {
+  if (gameOver || paused) return;
   const dt = ts - lastTime;
   lastTime = ts;
   dropAccum += dt;
@@ -253,6 +258,8 @@ function loop(ts) {
     }
   }
   draw();
+  // endGame() pudo ejecutarse dentro de este frame (el cancelAnimationFrame no cancela el frame en curso)
+  if (gameOver) return;
   animId = requestAnimationFrame(loop);
 }
 
