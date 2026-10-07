@@ -14,7 +14,28 @@ const COLORS = [
   '#90caf9', // J - azul pálido
   '#ffb74d', // L - orange
   '#a1887f', // N - tuerca (bronce)
+  '#f5f5f5', // 9 - comodín (tinte)
+  '#ef5350', // 10 - bomba
+  '#ffee58', // 11 - rayo
+  '#ec407a', // 12 - tinte
+  '#8d6e63', // 13 - gravedad
+  '#4fc3f7', // 14 - congelar
 ];
+
+// Power-ups: cada uno es una pieza de 1 bloque cuyo valor de celda es su índice de color
+const WILDCARD = 9;
+const POWERUPS = {
+  bomb:      { cell: 10, icon: '💣' },
+  lightning: { cell: 11, icon: '⚡' },
+  tint:      { cell: 12, icon: '🎨' },
+  gravity:   { cell: 13, icon: '⬇️' },
+  freeze:    { cell: 14, icon: '❄️' },
+};
+const POWERUP_KINDS = Object.keys(POWERUPS);
+const POWERUP_EVERY = 5;      // líneas necesarias para ganar un power-up
+const FREEZE_MS = 5000;
+const CELL_ICONS = { [WILDCARD]: '★' };
+for (const k of POWERUP_KINDS) CELL_ICONS[POWERUPS[k].cell] = POWERUPS[k].icon;
 
 const PIECES = [
   null,
@@ -42,18 +63,25 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const statusEl = document.getElementById('status');
 
 const THEME_KEY = 'tetris-theme';
 let gridColor = '#22222e';
 let highlightColor = 'rgba(255,255,255,0.12)';
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let nextPowerupAt, pendingPowerup, freezeLeft;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
 }
 
 function randomPiece() {
+  if (pendingPowerup) {
+    pendingPowerup = false;
+    const power = POWERUP_KINDS[Math.floor(Math.random() * POWERUP_KINDS.length)];
+    return { type: POWERUPS[power].cell, power, shape: [[POWERUPS[power].cell]], x: Math.floor(COLS / 2), y: 0 };
+  }
   const type = Math.floor(Math.random() * (PIECES.length - 1)) + 1;
   const shape = PIECES[type].map(row => [...row]);
   return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
@@ -103,7 +131,7 @@ function merge() {
 function clearLines() {
   let cleared = 0;
   for (let r = ROWS - 1; r >= 0; r--) {
-    if (board[r].every(v => v !== 0)) {
+    if (rowComplete(board[r])) {
       board.splice(r, 1);
       board.unshift(new Array(COLS).fill(0));
       cleared++;
@@ -115,8 +143,75 @@ function clearLines() {
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    while (lines >= nextPowerupAt) {
+      pendingPowerup = true;
+      nextPowerupAt += POWERUP_EVERY;
+    }
     updateHUD();
   }
+}
+
+// un comodín puede sustituir a un bloque faltante en la fila
+function rowComplete(row) {
+  let empty = 0, wild = 0;
+  for (const v of row) {
+    if (v === 0) empty++;
+    else if (v === WILDCARD) wild++;
+  }
+  return empty <= wild;
+}
+
+function applyPowerup(kind, px, py) {
+  switch (kind) {
+    case 'bomb':
+      for (let r = py - 1; r <= py + 1; r++)
+        for (let c = px - 1; c <= px + 1; c++)
+          if (r >= 0 && r < ROWS && c >= 0 && c < COLS) board[r][c] = 0;
+      break;
+    case 'lightning':
+      if (Math.random() < 0.5) {
+        board[py].fill(0);
+      } else {
+        for (let r = 0; r < ROWS; r++) board[r][px] = 0;
+      }
+      break;
+    case 'tint': {
+      // color del bloque sobre el que cae; si cae al suelo, el más abundante
+      let target = py + 1 < ROWS ? board[py + 1][px] : 0;
+      if (!target || target === WILDCARD) {
+        const counts = {};
+        for (const row of board)
+          for (const v of row)
+            if (v && v !== WILDCARD) counts[v] = (counts[v] || 0) + 1;
+        target = +Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || 0;
+      }
+      if (target)
+        for (const row of board)
+          for (let c = 0; c < COLS; c++)
+            if (row[c] === target) row[c] = WILDCARD;
+      break;
+    }
+    case 'gravity':
+      for (let c = 0; c < COLS; c++) {
+        let write = ROWS - 1;
+        for (let r = ROWS - 1; r >= 0; r--) {
+          if (board[r][c]) {
+            const v = board[r][c];
+            board[r][c] = 0;
+            board[write--][c] = v;
+          }
+        }
+      }
+      break;
+    case 'freeze':
+      freezeLeft = FREEZE_MS;
+      updateStatus();
+      break;
+  }
+}
+
+function updateStatus() {
+  statusEl.textContent = freezeLeft > 0 ? `❄️ Congelado ${Math.ceil(freezeLeft / 1000)}s` : '';
 }
 
 function ghostY() {
@@ -143,7 +238,8 @@ function softDrop() {
 }
 
 function lockPiece() {
-  merge();
+  if (current.power) applyPowerup(current.power, current.x, current.y);
+  else merge();
   clearLines();
   spawn();
 }
@@ -172,6 +268,13 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
   // highlight
   context.fillStyle = highlightColor;
   context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  if (CELL_ICONS[colorIndex]) {
+    context.fillStyle = '#222';
+    context.font = `${Math.floor(size * 0.6)}px sans-serif`;
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(CELL_ICONS[colorIndex], x * size + size / 2, y * size + size / 2 + 1);
+  }
   context.globalAlpha = 1;
 }
 
@@ -255,7 +358,12 @@ function loop(ts) {
   if (gameOver || paused) return;
   const dt = ts - lastTime;
   lastTime = ts;
-  dropAccum += dt;
+  if (freezeLeft > 0) {
+    freezeLeft = Math.max(0, freezeLeft - dt);
+    updateStatus();
+  } else {
+    dropAccum += dt;
+  }
   if (dropAccum >= dropInterval) {
     dropAccum = 0;
     if (!collide(current.shape, current.x, current.y + 1)) {
@@ -280,6 +388,10 @@ function init() {
   dropInterval = 1000;
   dropAccum = 0;
   lastTime = performance.now();
+  nextPowerupAt = POWERUP_EVERY;
+  pendingPowerup = false;
+  freezeLeft = 0;
+  updateStatus();
   next = randomPiece();
   spawn();
   updateHUD();

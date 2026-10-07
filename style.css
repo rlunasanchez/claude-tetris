@@ -133,6 +133,19 @@ body {
   letter-spacing: 1px;
 }
 
+.status {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  min-height: 16px;
+}
+
+.hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 #next-canvas {
   display: block;
   border: 1px solid var(--board-border);
