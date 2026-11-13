@@ -45,7 +45,7 @@
             <li><kbd>↑</kbd> rotar</li>
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
-            <li><kbd>P</kbd> pausa</li>
+            <li><kbd>P</kbd> / <kbd>Esc</kbd> pausa</li>
           </ul>
         </div>
       </aside>
@@ -56,6 +56,29 @@
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
         <button id="restart-btn">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="pause-menu" class="overlay hidden" role="dialog" aria-label="Menú de pausa">
+      <div class="overlay-box pause-box">
+        <p class="pause-title">PAUSA</p>
+        <button type="button" class="menu-item" id="pm-resume">Reanudar</button>
+        <button type="button" class="menu-item" id="pm-restart">Reiniciar</button>
+        <button type="button" class="menu-item" id="pm-controls" aria-expanded="false">Ver controles</button>
+        <ul id="pm-controls-list" class="pause-controls hidden">
+          <li><kbd>←</kbd><kbd>→</kbd> mover</li>
+          <li><kbd>↑</kbd> / <kbd>X</kbd> rotar</li>
+          <li><kbd>↓</kbd> bajar</li>
+          <li><kbd>Space</kbd> caída</li>
+          <li><kbd>P</kbd> / <kbd>Esc</kbd> pausa</li>
+          <li><kbd>↑</kbd><kbd>↓</kbd><kbd>Enter</kbd> navegar menú</li>
+        </ul>
+        <div class="menu-item menu-level" id="pm-level">
+          <span>Nivel inicial</span>
+          <button type="button" id="pm-level-dec" aria-label="Bajar nivel inicial" tabindex="-1">◀</button>
+          <span id="pm-level-value">1</span>
+          <button type="button" id="pm-level-inc" aria-label="Subir nivel inicial" tabindex="-1">▶</button>
+        </div>
       </div>
     </div>
   </div>
