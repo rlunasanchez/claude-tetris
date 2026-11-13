@@ -81,9 +81,10 @@ const SKINS = {
       context.lineWidth = 2;
       context.strokeRect(px + 3, py + 3, size - 6, size - 6);
       context.fillStyle = color;
-      context.globalAlpha *= 0.35;
+      const prevAlpha = context.globalAlpha;
+      context.globalAlpha = prevAlpha * 0.35;
       context.fillRect(px + 3, py + 3, size - 6, size - 6);
-      context.globalAlpha /= 0.35;
+      context.globalAlpha = prevAlpha;
       context.shadowBlur = 0;
       context.shadowColor = 'transparent';
     },
@@ -373,7 +374,7 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
   context.globalAlpha = alpha ?? 1;
   skin.drawCell(context, x * size, y * size, size, color);
   if (CELL_ICONS[colorIndex]) {
-    context.fillStyle = '#222';
+    context.fillStyle = skin === SKINS.neon ? '#fff' : '#222';
     context.font = `${Math.floor(size * 0.6)}px sans-serif`;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
@@ -505,6 +506,8 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
+  // si el selector de skin conserva el foco, quitárselo para que las teclas sean del juego
+  if (document.activeElement === skinSelect) skinSelect.blur();
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
